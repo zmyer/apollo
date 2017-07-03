@@ -23,13 +23,8 @@ public class SystemUserConfigurer extends WebSecurityConfigurerAdapter {
 
   public static final String USER_ROLE = "user";
 
-//  @Autowired
-//  private PortalConfig portalConfig;
   @Autowired
   private DataSource datasource;
-//
-//  private AuthenticationManagerBuilder auth;
-
 
   @Override
   protected void configure(HttpSecurity http) throws Exception {
@@ -44,40 +39,10 @@ public class SystemUserConfigurer extends WebSecurityConfigurerAdapter {
   @Autowired
   public void configureGlobal(AuthenticationManagerBuilder auth, JdbcUserDetailsManager userDetailsService)
       throws Exception {
-//    this.auth = auth;
-
     PasswordEncoder encoder = new BCryptPasswordEncoder();
 
     auth.userDetailsService(userDetailsService).passwordEncoder(encoder);
     auth.jdbcAuthentication().dataSource(datasource).usersByUsernameQuery(
         "select username,password, enabled from users where username=?");
-
-//    initUsers(userDetailsService);
   }
-
-
-
-  //init at application start. So if user information changed should restart application.
-//  public void initUsers(JdbcUserDetailsManager userDetailsService) throws Exception {
-//    if (auth == null) {
-//      return;
-//    }
-//
-//    Map<String, ApolloUser> users = portalConfig.systemUsers();
-//
-//    List<GrantedAuthority> authorities = new ArrayList<>();
-//    authorities.add(new SimpleGrantedAuthority("ROLE_" + USER_ROLE));
-//    PasswordEncoder encoder = new BCryptPasswordEncoder();
-//
-//    for (Map.Entry<String, ApolloUser> user : users.entrySet()) {
-//      String userName = user.getKey();
-//      if (!userDetailsService.userExists(userName)) {
-//
-//        User userDetails = new User(userName, encoder.encode(user.getValue().getPassword()), authorities);
-//
-//        userDetailsService.createUser(userDetails);
-//      }
-//    }
-//  }
-
 }
