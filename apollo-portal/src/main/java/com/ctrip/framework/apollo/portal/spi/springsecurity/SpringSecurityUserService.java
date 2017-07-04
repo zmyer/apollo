@@ -3,7 +3,7 @@ package com.ctrip.framework.apollo.portal.spi.springsecurity;
 import com.google.common.collect.Lists;
 
 import com.ctrip.framework.apollo.core.utils.StringUtils;
-import com.ctrip.framework.apollo.portal.component.SystemUserConfigurer;
+import com.ctrip.framework.apollo.portal.configuration.SystemUserConfigurer;
 import com.ctrip.framework.apollo.portal.entity.bo.UserInfo;
 import com.ctrip.framework.apollo.portal.entity.po.UserPO;
 import com.ctrip.framework.apollo.portal.repository.UserRepository;

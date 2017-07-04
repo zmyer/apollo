@@ -1,4 +1,4 @@
-package com.ctrip.framework.apollo.portal.component;
+package com.ctrip.framework.apollo.portal.configuration;
 
 import org.apache.tomcat.jdbc.pool.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +43,6 @@ public class SystemUserConfigurer extends WebSecurityConfigurerAdapter {
 
     auth.userDetailsService(userDetailsService).passwordEncoder(encoder);
     auth.jdbcAuthentication().dataSource(datasource).usersByUsernameQuery(
-        "select username,password, enabled from Users where username=?");
+        "select username,password, enabled from users where username=?");
   }
 }
