@@ -1,8 +1,18 @@
 package com.ctrip.framework.apollo.spring.config;
 
-import java.util.Collection;
-import java.util.Iterator;
+import com.ctrip.framework.apollo.build.ApolloInjector;
+import com.ctrip.framework.apollo.spring.property.AutoUpdateConfigChangeListener;
+import com.ctrip.framework.apollo.spring.util.SpringInjector;
+import com.ctrip.framework.apollo.util.ConfigUtil;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Multimap;
 
+import com.ctrip.framework.apollo.Config;
+import com.ctrip.framework.apollo.ConfigService;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -13,21 +23,26 @@ import org.springframework.core.env.CompositePropertySource;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
 
-import com.ctrip.framework.apollo.Config;
-import com.ctrip.framework.apollo.ConfigService;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Multimap;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
- * Apollo Property Sources processor for Spring Annotation Based Application
+ * Apollo Property Sources processor for Spring Annotation Based Application. <br /> <br />
+ *
+ * The reason why PropertySourcesProcessor implements {@link BeanFactoryPostProcessor} instead of
+ * {@link org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor} is that lower versions of
+ * Spring (e.g. 3.1.1) doesn't support registering BeanDefinitionRegistryPostProcessor in ImportBeanDefinitionRegistrar
+ * - {@link com.ctrip.framework.apollo.spring.annotation.ApolloConfigRegistrar}
  *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class PropertySourcesProcessor implements BeanFactoryPostProcessor, EnvironmentAware, PriorityOrdered {
-  private static final String APOLLO_PROPERTY_SOURCE_NAME = "ApolloPropertySources";
-  private static final Multimap<Integer, String> NAMESPACE_NAMES = HashMultimap.create();
+  private static final Multimap<Integer, String> NAMESPACE_NAMES = LinkedHashMultimap.create();
+  private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
+  private final ConfigPropertySourceFactory configPropertySourceFactory = SpringInjector
+      .getInstance(ConfigPropertySourceFactory.class);
+  private final ConfigUtil configUtil = ApolloInjector.getInstance(ConfigUtil.class);
   private ConfigurableEnvironment environment;
 
   public static boolean addNamespaces(Collection<String> namespaces, int order) {
@@ -36,15 +51,19 @@ public class PropertySourcesProcessor implements BeanFactoryPostProcessor, Envir
 
   @Override
   public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-    initializePropertySources();
+    if (INITIALIZED.compareAndSet(false, true)) {
+      initializePropertySources();
+
+      initializeAutoUpdatePropertiesFeature(beanFactory);
+    }
   }
 
-  protected void initializePropertySources() {
-    if (environment.getPropertySources().contains(APOLLO_PROPERTY_SOURCE_NAME)) {
+  private void initializePropertySources() {
+    if (environment.getPropertySources().contains(PropertySourcesConstants.APOLLO_PROPERTY_SOURCE_NAME)) {
       //already initialized
       return;
     }
-    CompositePropertySource composite = new CompositePropertySource(APOLLO_PROPERTY_SOURCE_NAME);
+    CompositePropertySource composite = new CompositePropertySource(PropertySourcesConstants.APOLLO_PROPERTY_SOURCE_NAME);
 
     //sort by order asc
     ImmutableSortedSet<Integer> orders = ImmutableSortedSet.copyOf(NAMESPACE_NAMES.keySet());
@@ -55,10 +74,32 @@ public class PropertySourcesProcessor implements BeanFactoryPostProcessor, Envir
       for (String namespace : NAMESPACE_NAMES.get(order)) {
         Config config = ConfigService.getConfig(namespace);
 
-        composite.addPropertySource(new ConfigPropertySource(namespace, config));
+        composite.addPropertySource(configPropertySourceFactory.getConfigPropertySource(namespace, config));
       }
     }
-    environment.getPropertySources().addFirst(composite);
+
+    // add after the bootstrap property source or to the first
+    if (environment.getPropertySources()
+        .contains(PropertySourcesConstants.APOLLO_BOOTSTRAP_PROPERTY_SOURCE_NAME)) {
+      environment.getPropertySources()
+          .addAfter(PropertySourcesConstants.APOLLO_BOOTSTRAP_PROPERTY_SOURCE_NAME, composite);
+    } else {
+      environment.getPropertySources().addFirst(composite);
+    }
+  }
+
+  private void initializeAutoUpdatePropertiesFeature(ConfigurableListableBeanFactory beanFactory) {
+    if (!configUtil.isAutoUpdateInjectedSpringPropertiesEnabled()) {
+      return;
+    }
+
+    AutoUpdateConfigChangeListener autoUpdateConfigChangeListener = new AutoUpdateConfigChangeListener(
+        environment, beanFactory);
+
+    List<ConfigPropertySource> configPropertySources = configPropertySourceFactory.getAllConfigPropertySources();
+    for (ConfigPropertySource configPropertySource : configPropertySources) {
+      configPropertySource.addChangeListener(autoUpdateConfigChangeListener);
+    }
   }
 
   @Override
@@ -68,8 +109,9 @@ public class PropertySourcesProcessor implements BeanFactoryPostProcessor, Envir
   }
 
   //only for test
-   private static void reset() {
+  private static void reset() {
     NAMESPACE_NAMES.clear();
+    INITIALIZED.set(false);
   }
 
   @Override

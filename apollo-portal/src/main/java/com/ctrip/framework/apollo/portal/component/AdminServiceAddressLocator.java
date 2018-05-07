@@ -12,8 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.web.HttpMessageConverters;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
@@ -58,7 +56,7 @@ public class AdminServiceAddressLocator {
     restTemplate = restTemplateFactory.getObject();
 
     refreshServiceAddressService =
-        Executors.newScheduledThreadPool(1, ApolloThreadFactory.create("ServiceLocator", false));
+        Executors.newScheduledThreadPool(1, ApolloThreadFactory.create("ServiceLocator", true));
 
     refreshServiceAddressService.schedule(new RefreshAdminServerAddressTask(), 1, TimeUnit.MILLISECONDS);
   }

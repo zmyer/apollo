@@ -56,7 +56,6 @@ public class AppController {
   @Autowired
   private RolePermissionService rolePermissionService;
 
-
   @RequestMapping(value = "", method = RequestMethod.GET)
   public List<App> findApps(@RequestParam(value = "appIds", required = false) String appIds) {
     if (StringUtils.isEmpty(appIds)) {
@@ -179,13 +178,13 @@ public class AppController {
       throw new BadRequestException(String.format("AppId格式错误: %s", InputValidator.INVALID_CLUSTER_NAMESPACE_MESSAGE));
     }
 
-    App app = new App();
-    app.setAppId(appId);
-    app.setName(appName);
-    app.setOwnerName(ownerName);
-    app.setOrgId(orgId);
-    app.setOrgName(orgName);
+    return App.builder()
+            .appId(appId)
+            .name(appName)
+            .ownerName(ownerName)
+            .orgId(orgId)
+            .orgName(orgName)
+            .build();
 
-    return app;
   }
 }
