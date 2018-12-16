@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -30,23 +31,38 @@ public class AppNamespaceController {
   private NamespaceService namespaceService;
 
   @RequestMapping(value = "/apps/{appId}/appnamespaces", method = RequestMethod.POST)
-  public AppNamespaceDTO create(@RequestBody AppNamespaceDTO appNamespace) {
+  public AppNamespaceDTO create(@RequestBody AppNamespaceDTO appNamespace,
+                                @RequestParam(defaultValue = "false") boolean silentCreation) {
 
     AppNamespace entity = BeanUtils.transfrom(AppNamespace.class, appNamespace);
     AppNamespace managedEntity = appNamespaceService.findOne(entity.getAppId(), entity.getName());
 
-    if (managedEntity != null) {
+    if (managedEntity == null) {
+      if (StringUtils.isEmpty(entity.getFormat())){
+        entity.setFormat(ConfigFileFormat.Properties.getValue());
+      }
+
+      entity = appNamespaceService.createAppNamespace(entity);
+    } else if (silentCreation) {
+      appNamespaceService.createNamespaceForAppNamespaceInAllCluster(appNamespace.getAppId(), appNamespace.getName(),
+          appNamespace.getDataChangeCreatedBy());
+
+      entity = managedEntity;
+    } else {
       throw new BadRequestException("app namespaces already exist.");
     }
 
-    if (StringUtils.isEmpty(entity.getFormat())){
-      entity.setFormat(ConfigFileFormat.Properties.getValue());
-    }
-
-    entity = appNamespaceService.createAppNamespace(entity);
-
     return BeanUtils.transfrom(AppNamespaceDTO.class, entity);
+  }
 
+  @RequestMapping(value = "/apps/{appId}/appnamespaces/{namespaceName:.+}", method = RequestMethod.DELETE)
+  public void delete(@PathVariable("appId") String appId, @PathVariable("namespaceName") String namespaceName,
+      @RequestParam String operator) {
+    AppNamespace entity = appNamespaceService.findOne(appId, namespaceName);
+    if (entity == null) {
+      throw new BadRequestException("app namespace not found for appId: " + appId + " namespace: " + namespaceName);
+    }
+    appNamespaceService.deleteAppNamespace(entity, operator);
   }
 
   @RequestMapping(value = "/appnamespaces/{publicNamespaceName}/namespaces", method = RequestMethod.GET)
@@ -62,4 +78,11 @@ public class AppNamespaceController {
     return namespaceService.countPublicAppNamespaceAssociatedNamespaces(publicNamespaceName);
   }
 
+  @RequestMapping(value = "/apps/{appId}/appnamespaces", method = RequestMethod.GET)
+  public List<AppNamespaceDTO> getAppNamespaces(@PathVariable("appId") String appId) {
+
+    List<AppNamespace> appNamespaces = appNamespaceService.findByAppId(appId);
+
+    return BeanUtils.batchTransform(AppNamespaceDTO.class, appNamespaces);
+  }
 }
