@@ -51,7 +51,9 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
             scope.loadCommitHistory = loadCommitHistory;
             scope.toggleTextEditStatus = toggleTextEditStatus;
             scope.goToSyncPage = goToSyncPage;
+            scope.goToDiffPage = goToDiffPage;
             scope.modifyByText = modifyByText;
+            scope.syntaxCheck = syntaxCheck;
             scope.goToParentAppConfigPage = goToParentAppConfigPage;
             scope.switchInstanceViewType = switchInstanceViewType;
             scope.switchBranch = switchBranch;
@@ -90,7 +92,7 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
                 //namespace view name hide suffix
                 namespace.viewName = namespace.baseInfo.namespaceName.replace(".xml", "").replace(
                             ".properties", "").replace(".json", "").replace(".yml", "")
-                            .replace(".yaml", "");
+                            .replace(".yaml", "").replace(".txt", "");
             }
 
             function init() {
@@ -115,6 +117,7 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
                 scope.showNamespaceBody = namespace.showNamespaceBody ? true : scope.showBody;
                 namespace.viewItems = namespace.items;
                 namespace.isPropertiesFormat = namespace.format == 'properties';
+                namespace.isSyntaxCheckable = namespace.format == 'yaml' || namespace.format == 'yml';
                 namespace.isTextEditing = false;
                 namespace.instanceViewType = namespace_instance_view_type.LATEST_RELEASE;
                 namespace.latestReleaseInstancesPage = 0;
@@ -188,14 +191,15 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
 
                             //modify master item and set item's masterReleaseValue
                             if (masterItem) {
-                                if (masterItem.isModified && masterItem.oldValue) {
+                                item.masterItemExists = true;
+                                if (masterItem.isModified) {
                                     item.masterReleaseValue = masterItem.oldValue;
-                                } else if (masterItem.item.value) {
+                                } else {
                                     item.masterReleaseValue = masterItem.item.value;
                                 }
 
                             } else {//delete branch item
-                                item.masterReleaseValue = '';
+                                item.masterItemExists = false;
                             }
 
                             //delete master item. ignore
@@ -699,6 +703,14 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
                     + "&namespaceName=" + namespace.baseInfo.namespaceName;
             }
 
+            function goToDiffPage(namespace) {
+                $window.location.href =
+                    "config/diff.html?#/appid=" + scope.appId + "&env="
+                    + scope.env + "&clusterName="
+                    + scope.cluster
+                    + "&namespaceName=" + namespace.baseInfo.namespaceName;
+            }
+
             function modifyByText(namespace) {
                 var model = {
                     configText: namespace.editText,
@@ -733,6 +745,28 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
                 );
                 namespace.commited = true;
                 toggleTextEditStatus(namespace);
+            }
+
+            function syntaxCheck(namespace) {
+                var model = {
+                    configText: namespace.editText,
+                    namespaceId: namespace.baseInfo.id,
+                    format: namespace.format
+                };
+                ConfigService.syntax_check_text(scope.appId,
+                                                scope.env,
+                                                scope.cluster,
+                                                namespace.baseInfo.namespaceName,
+                                                model).then(
+                    function (result) {
+                        toastr.success("语法正确！");
+
+                    }, function (result) {
+                        EventManager.emit(EventManager.EventType.SYNTAX_CHECK_TEXT_FAILED, {
+                            syntaxCheckMessage: AppUtil.pureErrorMsg(result)
+                        });
+                    }
+                );
             }
 
             function goToParentAppConfigPage(namespace) {
@@ -857,7 +891,7 @@ function directive($window, toastr, AppUtil, EventManager, PermissionService, Na
                 $blockScrolling: Infinity,
                 showPrintMargin: false,
                 theme: 'eclipse',
-                mode: scope.namespace.format === 'yml' ? 'yaml' : scope.namespace.format,
+                mode: scope.namespace.format === 'yml' ? 'yaml' : (scope.namespace.format === 'txt' ? undefined : scope.namespace.format),
                 onLoad: function (_editor) {
                     _editor.$blockScrolling = Infinity;
                     _editor.setOptions({

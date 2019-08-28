@@ -164,6 +164,10 @@ public class AdminServiceAPI {
           ItemDTO.class, appId, clusterName, namespaceName, key);
     }
 
+    public ItemDTO loadItemById(Env env, long itemId) {
+      return restTemplate.get(env, "items/{itemId}", ItemDTO.class, itemId);
+    }
+
     public void updateItemsByChangeSet(String appId, Env env, String clusterName, String namespace,
         ItemChangeSets changeSets) {
       restTemplate.post(env, "apps/{appId}/clusters/{clusterName}/namespaces/{namespaceName}/itemset",
@@ -295,9 +299,7 @@ public class AdminServiceAPI {
       parameters.add("comment", releaseComment);
       parameters.add("operator", operator);
       parameters.add("isEmergencyPublish", String.valueOf(isEmergencyPublish));
-      grayDelKeys.forEach(key ->{
-        parameters.add("grayDelKeys",key);
-      });
+      grayDelKeys.forEach(key -> parameters.add("grayDelKeys",key));
       HttpEntity<MultiValueMap<String, String>> entity =
               new HttpEntity<>(parameters, headers);
       ReleaseDTO response = restTemplate.post(

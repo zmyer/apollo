@@ -78,7 +78,7 @@ p, td, span {
     color: #797979;
 }
 
-pre {
+pre, .pre {
     white-space: pre-wrap; /* Since CSS 2.1 */
     white-space: -moz-pre-wrap; /* Mozilla, since 1999 */
     white-space: -pre-wrap; /* Opera 4-6 */
@@ -805,3 +805,11 @@ table th {
     padding-left: 30px;
 }
 
+.app-search-list .select2-container, .app-search-list .select2-container .select2-selection {
+    height: 34px;
+}
+
+.app-search-list .select2-container .select2-selection .select2-selection__rendered {
+    line-height: 34px;
+    font-size: 14px;
+}

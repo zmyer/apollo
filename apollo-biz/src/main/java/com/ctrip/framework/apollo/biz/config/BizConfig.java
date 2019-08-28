@@ -1,15 +1,12 @@
 package com.ctrip.framework.apollo.biz.config;
 
+import com.ctrip.framework.apollo.biz.service.BizDBPropertySource;
+import com.ctrip.framework.apollo.common.config.RefreshableConfig;
+import com.ctrip.framework.apollo.common.config.RefreshablePropertySource;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
-import com.ctrip.framework.apollo.biz.service.BizDBPropertySource;
-import com.ctrip.framework.apollo.common.config.RefreshableConfig;
-import com.ctrip.framework.apollo.common.config.RefreshablePropertySource;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Type;
@@ -30,14 +27,18 @@ public class BizConfig extends RefreshableConfig {
   private static final int DEFAULT_RELEASE_MESSAGE_SCAN_INTERVAL_IN_MS = 1000; //1000ms
   private static final int DEFAULT_RELEASE_MESSAGE_NOTIFICATION_BATCH = 100;
   private static final int DEFAULT_RELEASE_MESSAGE_NOTIFICATION_BATCH_INTERVAL_IN_MILLI = 100;//100ms
+  private static final int DEFAULT_LONG_POLLING_TIMEOUT = 60; //60s
 
   private Gson gson = new Gson();
   private static final Type namespaceValueLengthOverrideTypeReference =
       new TypeToken<Map<Long, Integer>>() {
       }.getType();
 
-  @Autowired
-  private BizDBPropertySource propertySource;
+  private final BizDBPropertySource propertySource;
+
+  public BizConfig(final BizDBPropertySource propertySource) {
+    this.propertySource = propertySource;
+  }
 
   @Override
   protected List<RefreshablePropertySource> getRefreshablePropertySources() {
@@ -56,6 +57,11 @@ public class BizConfig extends RefreshableConfig {
   public int grayReleaseRuleScanInterval() {
     int interval = getIntProperty("apollo.gray-release-rule-scan.interval", DEFAULT_GRAY_RELEASE_RULE_SCAN_INTERVAL);
     return checkInt(interval, 1, Integer.MAX_VALUE, DEFAULT_GRAY_RELEASE_RULE_SCAN_INTERVAL);
+  }
+
+  public long longPollingTimeoutInMilli() {
+    int timeout = getIntProperty("long.polling.timeout", DEFAULT_LONG_POLLING_TIMEOUT);
+    return 1000 * checkInt(timeout, 1, Integer.MAX_VALUE, DEFAULT_LONG_POLLING_TIMEOUT);
   }
 
   public int itemKeyLengthLimit() {
@@ -146,4 +152,5 @@ public class BizConfig extends RefreshableConfig {
     }
     return defaultValue;
   }
+
 }
